@@ -2,7 +2,7 @@
 extern crate env_logger;
 extern crate hyper;
 extern crate router;
-extern crate rust_playpen;
+extern crate pony_playpen;
 extern crate rustc_serialize;
 extern crate staticfile;
 extern crate unicase;
@@ -23,7 +23,7 @@ use iron::typemap;
 use iron::prelude::*;
 use iron::status;
 use router::Router;
-use rust_playpen::*;
+use pony_playpen::*;
 use rustc_serialize::json;
 use staticfile::Static;
 use unicase::UniCase;
