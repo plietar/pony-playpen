@@ -26,36 +26,10 @@
                 ><button type=button class=primary id=evaluate title="Execute your code (you can also press Ctrl+Enter when editing code)">Run</button
                 ><button type=button id=asm title="Compile to ASM">ASM</button
                 ><button type=button id=llvm-ir title="Compile to LLVM IR">LLVM IR</button
-                ><button type=button id=mir title="Print compiler-internal MIR of the crate
-
-Note that MIR is an unstable implementation detail that's subject to change">MIR</button
-            ></div
-            ><wbr><div
-                ><button type=button id=format title="Automatically visually reformat your code">Format</button
             ></div
             ><wbr><div
                 ><button type=button id=share title="Share a link to your code via is.gd">Shorten</button
                 ><button type=button id=gist title="Share a link to your code via Gist">Gist</button
-            ></div
-            ><wbr><div class=radios
-                ><div title="Select a build mode:
- · Debug: no optimizations; debug assertions on
- · Release: all optimizations; debug assertions off">Mode</div
-                ><div
-                    ><input type=radio name=optimize id=optimize-0 value=0 checked><label for=optimize-0 title="No optimizations, debug assertions on. This is the default for rustc and cargo invocations and is good for development.">Debug</label
-                    ><input type=radio name=optimize id=optimize-3 value=3><label for=optimize-3 title="All optimizations, debug assertions off. Equivalent to `rustc -C opt-level 3` or `cargo --release`.">Release</label
-                ></div
-            ></div
-            ><wbr><div class=radios
-                ><div title="Select which version of rustc to use:
- · Stable: use this normally; stable features only.
- · Beta: the next version; stable features only.
- · Nightly: cutting edge; unstable features allowed.">Channel</div
-                ><div
-                    ><input type=radio name=version id=version-stable value=stable checked><label for=version-stable title="Use the stable channel">Stable</label
-                    ><input type=radio name=version id=version-beta value=beta><label for=version-beta title="Use the beta channel">Beta</label
-                    ><input type=radio name=version id=version-nightly value=nightly><label for=version-nightly title="Use the nightly channel">Nightly</label
-                ></div
             ></div
             ><wbr><div class=right-c-e
                 ><button type=button id=configure-editor><span>Configure editor</span></button
@@ -68,24 +42,13 @@ Note that MIR is an unstable implementation detail that's subject to change">MIR
                     </select>
                     <p><label for=themes>Theme:</label>
                     <select name=themes id=themes></select>
-                    <p><label for=asm-flavor>Asm Flavor:</label>
-                    <select name=asm-flavor id=asm-flavor>
-                        <option>att</option>
-                        <option>intel</option>
-                    </select>
-                    <p><label for=backtrace title="Whether to set the shell environment var RUST_BACKTRACE and thus show the backtrace in the output! eg. to quickly test this run: fn main() { panic!() }">Backtrace:</label>
-                    <select name=backtrace id=backtrace>
-                        <option title="RUST_BACKTRACE is not set" value="0">off</option>
-                        <option title="export RUST_BACKTRACE=1" value="1">on</option>
-                        <option title="'auto' means turn this on only when Mode: Debug but not when Mode: Release" value="2">auto</option>
-                    </select>
                 </div
             ></div>
         </form>
         <main>
-            <div id=editor>fn main() {
-    println!("Hello, world!");
-}</div>
+            <div id=editor>actor Main
+  new create(env: Env) =>
+    env.out.print("Hello, world!")</div>
             <div id=result data-empty><div></div><button type=button id=clear-result title="Close this pane">×</button></div>
         </main>
     </body>

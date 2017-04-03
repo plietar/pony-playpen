@@ -109,31 +109,10 @@
             'p':            'ace_punctuation', // Punctuation
             's':            'ace_string', // String
             '':             '', // Text
-        },
-        'mir': {
-            'c':            'ace_comment', // Comment
-            'cm':           'ace_comment', // Comment.Multiline
-            'c1':           'ace_comment', // Comment.Single
-            'k':            'ace_keyword', // Keyword
-            'kd':           'ace_keyword', // Keyword.Declaration
-            'kt':           'ace_variable ace_language', // Keyword.Type
-            'kc':           'ace_boolean', // Keyword.Constant
-            'na':           'ace_constant ace_language', // Name.Attribute
-            'nb':           'ace_constant ace_buildin', // Name.Builtin
-            'nf':           'ace_support ace_function', // Name.Function
-            'm':            'ace_constant ace_numeric', // Number
-            'o':            'ace_paren', // Operator
-            'p':            'ace_punctuation', // Punctuation
-            's':            'ace_string', // String
-            'se':           'ace_string', // String.Escape
-            '':             '', // Text
         }
     };
 
     function rehighlight(pygmentized, language) {
-        if (language == "mir") {
-            pygmentized = formatMirScopes(pygmentized);
-        }
         var mappings = PYGMENTS_TO_ACE_MAPPINGS[language];
         return pygmentized.replace(/<span class="([^"]*)">([^<]*)<\/span>/g, function() {
             var classes = mappings[arguments[1]];
@@ -154,8 +133,8 @@
         result.parentNode.style.visibility = "";
     }
 
-    function evaluate(result, code, version, optimize, button, test, backtrace) {
-        send("evaluate.json", {code: code, version: version, optimize: optimize, test: !!test, separate_output: true, color: true, backtrace: backtrace },
+    function evaluate(result, code, button) {
+        send("evaluate.json", {code: code, separate_output: true, color: true },
             function(object) {
                 var samp, pre;
                 set_result(result);
@@ -177,24 +156,19 @@
                     pre = document.createElement("pre");
                     pre.appendChild(samp);
                     result.appendChild(pre);
-                    if (test) {
-                        div = null;
-                    } else {
-                        div.textContent = "Program ended.";
-                    }
+                    div.textContent = "Program ended.";
                 } else {
                     div.textContent = "Compilation failed.";
                 }
                 if (div) {
                     result.appendChild(div);
                 }
-        }, button, test ? "Running tests…" : "Running…", result);
+        }, button, "Running…", result);
     }
 
-    function compile(emit, result, code, version, optimize, button, backtrace) {
-        var syntax = document.getElementById('asm-flavor').value;
-        send("compile.json", {emit: emit, code: code, version: version, optimize: optimize,
-                              color: true, highlight: true, syntax: syntax, backtrace: backtrace}, function(object) {
+    function compile(emit, result, code, button) {
+        send("compile.json", {emit: emit, code: code,
+                              color: true, highlight: true}, function(object) {
             if ("error" in object) {
                 set_result(result, "<pre class=\"rustc-output rustc-errors\"><samp></samp></pre>");
                 result.firstChild.firstChild.innerHTML = formatCompilerOutput(object.error);
@@ -202,18 +176,6 @@
                 set_result(result, "<pre class=highlight><code>" + rehighlight(object.result, emit) + "</code></pre>");
             }
         }, button, "Compiling…", result);
-    }
-
-    function format(result, session, version, button, optimize, backtrace) {
-        send("format.json", {code: session.getValue(), version: version, optimize: optimize, backtrace: backtrace}, function(object) {
-            if ("error" in object) {
-                set_result(result, "<pre class=highlight><samp class=rustc-errors></samp></pre>");
-                result.firstChild.firstChild.innerHTML = formatCompilerOutput(object.error);
-            } else {
-                clear_result(result);
-                session.setValue(object.result);
-            }
-        }, button, "Formatting…", result);
     }
 
     function httpRequest(method, url, data, expect, on_success, on_fail) {
@@ -250,11 +212,9 @@
         result.parentNode.style.visibility = "";
     }
 
-    function shareGist(result, version, code, button, backtraceval) {
+    function shareGist(result, code, button) {
         // only needed for the "shrinking" animation
-        var full_url = "https://play.rust-lang.org/?code=" + encodeURIComponent(code) +
-                       "&version=" + encodeURIComponent(version) +
-                       "&backtrace=" + encodeURIComponent(backtraceval);
+        var full_url = "https://play.rust-lang.org/?code=" + encodeURIComponent(code);
         var url = "https://api.github.com/gists";
         button.disabled = true;
 
@@ -292,9 +252,7 @@
                         var gist_url = response.html_url;
 
                         var play_url = "https://play.rust-lang.org/?gist=" +
-                                       encodeURIComponent(gist_id) + "&version=" +
-                                       encodeURIComponent(version) +
-                       "&backtrace=" + encodeURIComponent(backtraceval);
+                                       encodeURIComponent(gist_id);
 
 
                         var link = result.firstChild.firstElementChild;
@@ -320,10 +278,8 @@
         );
     }
 
-    function share(result, version, code, button, backtraceval) {
+    function share(result, code, button) {
         var playurl = "https://play.rust-lang.org/?code=" + encodeURIComponent(code);
-        playurl += "&version=" + encodeURIComponent(version);
-        playurl += "&backtrace=" + encodeURIComponent(backtraceval);
         if (playurl.length > 5000) {
             set_result(result, "<p class=error>Sorry, your code is too long to share this way." +
                 "<p class=error-explanation>At present, sharing produces a link containing the" +
@@ -485,7 +441,6 @@
     var evaluateButton;
     var asmButton;
     var irButton;
-    var mirButton;
     var formatButton;
     var shareButton;
     var gistButton;
@@ -497,35 +452,13 @@
     var editor;
     var session;
     var themelist;
-    var evaluateAction = "run";
     var theme;
     var mode;
     var query;
-    var asm_flavor;
-    var backtrace;
 
-    function updateEvaluateAction(code) {
-        // A very simple pair of heuristics; there’s no point in doing more, IMO.
-        if (code.indexOf("fn main()") === -1 && code.indexOf("#[test]") !== -1) {
-            evaluateButton.textContent = "Test";
-            evaluateAction = "test";
-        } else {
-            evaluateButton.textContent = "Run";
-            evaluateAction = "run";
-        }
-    }
-
-    function doEvaluate(skipActionGuessing) {
+    function doEvaluate() {
         var code = session.getValue();
-        if (!skipActionGuessing) {
-            // If we have called this since the last change in the editor,
-            // this would be a waste of time
-            updateEvaluateAction(code);
-        }
-        evaluate(result, session.getValue(), getRadioValue("version"),
-                 getRadioValue("optimize"), evaluateButton,
-                 evaluateAction === "test",
-                 backtrace.value);
+        evaluate(result, session.getValue(), evaluateButton);
     }
 
     var COLOR_CODES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
@@ -598,15 +531,10 @@
         .replace(/&lt;anon&gt;:(\d+):(\d+)/mg, jumpToPoint);  // new errors
     }
 
-    function formatMir(text) {
-        return text.replace(/&lt;anon&gt;:(\d+):(\d+):\s+(\d+):(\d+)/mg, jumpToRegion);
-    }
-
     addEventListener("DOMContentLoaded", function() {
         evaluateButton = document.getElementById("evaluate");
         asmButton = document.getElementById("asm");
         irButton = document.getElementById("llvm-ir");
-        mirButton = document.getElementById("mir");
         formatButton = document.getElementById("format");
         shareButton = document.getElementById("share");
         gistButton = document.getElementById("gist");
@@ -614,8 +542,6 @@
         result = document.getElementById("result").firstChild;
         clearResultButton = document.getElementById("clear-result");
         keyboard = document.getElementById("keyboard");
-        asm_flavor = document.getElementById("asm-flavor");
-        backtrace = document.getElementById("backtrace");
         themes = document.getElementById("themes");
         editor = ace.edit("editor");
         set_result.editor = editor;
@@ -650,16 +576,6 @@
             keyboard.value = mode;
         }
 
-        var flavor = optionalLocalStorageGetItem("asm_flavor");
-        if (flavor !== null) {
-            asm_flavor.value = flavor;
-        }
-
-        var vbacktrace = optionalLocalStorageGetItem("backtrace");
-        if (vbacktrace !== null) {
-            backtrace.value = vbacktrace;
-        }
-
         query = getQueryParameters();
         if ("code" in query) {
             session.setValue(query.code);
@@ -674,23 +590,8 @@
             }
         }
 
-        if ("version" in query) {
-            var radio = document.getElementById("version-" + query.version);
-            if (radio !== null) {
-                radio.checked = true;
-            }
-        }
-
-        if ("backtrace" in query) {
-            if (backtrace !== null) {
-                backtrace.value = query.backtrace;
-            }
-        }
-
         if (query.run === "1") {
             doEvaluate();
-        } else {
-            updateEvaluateAction(session.getValue());
         }
 
         addEventListener("resize", function() {
@@ -711,23 +612,12 @@
         session.on("change", function() {
             var code = session.getValue();
             optionalLocalStorageSetItem("code", code);
-            updateEvaluateAction(code);
         });
 
         keyboard.onkeyup = keyboard.onchange = function() {
             var mode = keyboard.options[keyboard.selectedIndex].value;
             optionalLocalStorageSetItem("keyboard", mode);
             set_keyboard(editor, mode);
-        };
-
-        asm_flavor.onkeyup = asm_flavor.onchange = function() {
-            var flavor = asm_flavor.options[asm_flavor.selectedIndex].value;
-            optionalLocalStorageSetItem("asm_flavor", flavor);
-        };
-
-        backtrace.onkeyup = backtrace.onchange = function() {
-            var vbacktrace = backtrace.options[backtrace.selectedIndex].value;
-            optionalLocalStorageSetItem("backtrace", vbacktrace);
         };
 
         evaluateButton.onclick = function() {
@@ -785,32 +675,19 @@
         editor.commands.addCommand(transposeletters);
 
         asmButton.onclick = function() {
-            compile("asm", result, session.getValue(), getRadioValue("version"),
-                     getRadioValue("optimize"), asmButton, backtrace.value);
+            compile("asm", result, session.getValue(), asmButton);
         };
 
         irButton.onclick = function() {
-            compile("llvm-ir", result, session.getValue(), getRadioValue("version"),
-                     getRadioValue("optimize"), irButton, backtrace.value);
-        };
-
-        mirButton.onclick = function() {
-            document.getElementById("version-nightly").checked = true;
-            compile("mir", result, session.getValue(), getRadioValue("version"),
-                     getRadioValue("optimize"), mirButton, backtrace.value);
-        };
-
-        formatButton.onclick = function() {
-            format(result, session, getRadioValue("version"), formatButton,
-                   getRadioValue("optimize"), backtrace.value);
+            compile("llvm-ir", result, session.getValue(), irButton);
         };
 
         shareButton.onclick = function() {
-            share(result, getRadioValue("version"), session.getValue(), shareButton, backtrace.value);
+            share(result, session.getValue(), shareButton);
         };
 
         gistButton.onclick = function() {
-            shareGist(result, getRadioValue("version"), session.getValue(), gistButton, backtrace.value);
+            shareGist(result, session.getValue(), gistButton);
         };
 
         configureEditorButton.onclick = function() {
