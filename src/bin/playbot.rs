@@ -1,4 +1,5 @@
 #[macro_use] extern crate log;
+#[macro_use] extern crate serde_derive;
 extern crate env_logger;
 extern crate hyper;
 extern crate irc;
@@ -246,14 +247,14 @@ fn main() {
     // FIXME All these unwraps are pretty bad UX, but they should only panic on misconfiguration
     let mut config = String::new();
     File::open("playbot.toml").unwrap().read_to_string(&mut config).unwrap();
-    let toml = toml::Parser::new(&config).parse().unwrap();
+    let toml : toml::Value = toml::from_str(&config).unwrap();
     let bitly_key = toml["bitly-key"].as_str().unwrap().to_string();
 
     let mut threads = Vec::new();
-    for server in toml["server"].as_slice().unwrap() {
+    for server in toml["server"].as_array().unwrap() {
         let server = server.as_table().unwrap();
 
-        for nick in server["nicks"].as_slice().unwrap() {
+        for nick in server["nicks"].as_array().unwrap() {
             let nick = nick.as_str().unwrap();
             let server_addr = server["server"].as_str().unwrap();
             let conf = Config {
@@ -268,7 +269,7 @@ fn main() {
                     assert!(0 < port && port < u16::MAX as i64, "out of range for ports");
                     port as u16
                 }),
-                channels: Some(server["channels"].as_slice().unwrap()
+                channels: Some(server["channels"].as_array().unwrap()
                     .iter()
                     .map(|val| String::from(val.as_str().unwrap()))
                     .collect()),
