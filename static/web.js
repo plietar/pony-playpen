@@ -1,8 +1,9 @@
 (function () {
     "use strict";
+    const PLAYPEN_URL = "http://pony-playpen.lietar.net";
 
     // For convenience of development
-    var PREFIX = location.href.indexOf("/web.html") != -1 ? "https://play.rust-lang.org/" : "/";
+    var PREFIX = location.href.indexOf("/web.html") != -1 ? PLAYPEN_URL + "/" : "/";
 
     var samples = 2;
 
@@ -214,7 +215,7 @@
 
     function shareGist(result, code, button) {
         // only needed for the "shrinking" animation
-        var full_url = "https://play.rust-lang.org/?code=" + encodeURIComponent(code);
+        var full_url = PLAYPEN_URL + "/?code=" + encodeURIComponent(code);
         var url = "https://api.github.com/gists";
         button.disabled = true;
 
@@ -251,7 +252,7 @@
                         var gist_id = response.id;
                         var gist_url = response.html_url;
 
-                        var play_url = "https://play.rust-lang.org/?gist=" +
+                        var play_url = PLAYPEN_URL + "/?gist=" +
                                        encodeURIComponent(gist_id);
 
 
@@ -279,7 +280,7 @@
     }
 
     function share(result, code, button) {
-        var playurl = "https://play.rust-lang.org/?code=" + encodeURIComponent(code);
+        var playurl = PLAYPEN_URL + "/?code=" + encodeURIComponent(code);
         if (playurl.length > 5000) {
             set_result(result, "<p class=error>Sorry, your code is too long to share this way." +
                 "<p class=error-explanation>At present, sharing produces a link containing the" +
@@ -521,14 +522,10 @@
     }
 
     function formatCompilerOutput(text) {
-        return ansi2html(text).replace(/\[(--explain )?(E\d\d\d\d)\]/g, function(text, prefix, code) {
-            return "[<a href=https://doc.rust-lang.org/error-index.html#" + code + " target=_blank>" + (prefix ? prefix : "") + code + "</a>]";
-        }).replace(/run `rustc --explain (E\d\d\d\d)` to see a detailed explanation/g, function(text, code) {
-            return "see the <a href=https://doc.rust-lang.org/error-index.html#" + code + " target=_blank>detailed explanation for " + code + "</a>";
-        }).replace(/&lt;anon&gt;:(\d+)$/mg, jumpToLine) // panicked at 'foo', $&
-        .replace(/^&lt;anon&gt;:(\d+):(\d+):\s+(\d+):(\d+)/mg, jumpToRegion)
-        .replace(/^&lt;anon&gt;:(\d+)/mg, jumpToLine)
-        .replace(/&lt;anon&gt;:(\d+):(\d+)/mg, jumpToPoint);  // new errors
+        return ansi2html(text)
+            .replace(/\/.*\/main.pony/mg, "main.pony")
+            .replace(/\/usr\/local\/lib\/pony\/[^\/]*\//mg, "")
+            .replace(/main\.pony:(\d+):(\d+)/mg, jumpToPoint);
     }
 
     addEventListener("DOMContentLoaded", function() {
