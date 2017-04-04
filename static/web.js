@@ -233,10 +233,10 @@
         var repainter = setInterval(repaintResult, 50);
         httpRequest("POST", "https://api.github.com/gists",
                     JSON.stringify({
-                        "description": "Shared via Rust Playground",
+                        "description": "Shared via Pony Playground",
                         "public": true,
                         "files": {
-                            "playground.rs": {
+                            "playground.pony": {
                                 "content": code
                             }
                         }
