@@ -1,0 +1,9 @@
+[Unit]
+Description=Update Playpen image
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/pony-playpen
+ExecStart=/usr/bin/docker pull ponylang/ponyc:release
+ExecStart=/usr/bin/docker build -t ponylang-playpen docker
+ExecStart=/bin/systemctl restart playpen

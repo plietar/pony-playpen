@@ -1,0 +1,13 @@
+[Unit]
+Description=Pony Playpen
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/pony-playpen/target/release/playpen
+WorkingDirectory=/opt/pony-playpen
+Restart=on-failure
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
