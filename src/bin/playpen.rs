@@ -6,6 +6,7 @@ extern crate pony_playpen;
 extern crate rustc_serialize;
 extern crate staticfile;
 extern crate unicase;
+extern crate logger;
 
 use std::env;
 use std::fmt;
@@ -27,6 +28,7 @@ use pony_playpen::*;
 use rustc_serialize::json;
 use staticfile::Static;
 use unicase::UniCase;
+use logger::Logger;
 
 const ENV: &'static str = "web";
 
@@ -199,10 +201,14 @@ fn main() {
     router.post("/evaluate.json", evaluate, "evaluate");
     router.post("/compile.json", compile, "compile");
 
+    let (logger_before, logger_after) = Logger::new(None);
+
     // Use our router as the middleware, and pass the generated response through `EnablePostCors`
     let mut chain = Chain::new(router);
+    chain.link_before(logger_before);
     chain.link_before(AddCache { cache: Arc::new(Cache::new()) });
     chain.link_after(EnablePostCors);
+    chain.link_after(logger_after);
 
     let addr = env::args().skip(1).next().unwrap_or("127.0.0.1".to_string());
     let addr = (&addr[..], 8080);

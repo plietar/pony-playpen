@@ -17,6 +17,7 @@ toml = "0.3.2"
 unicase = "1.4.0"
 url = "1.1.1"
 wait-timeout = "0.1"
+logger = "0.3.0"
 
 serde_json = "0.9"
 serde_derive = "0.9"
