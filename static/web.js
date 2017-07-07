@@ -567,6 +567,10 @@
 
         session.setMode("ace/mode/rust");
 
+        // Match the tab style of the Pony standard library.
+        session.setTabSize(2);
+        session.setUseSoftTabs(true);
+
         mode = optionalLocalStorageGetItem("keyboard");
         if (mode !== null) {
             set_keyboard(editor, mode);
