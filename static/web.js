@@ -1,6 +1,6 @@
 (function () {
     "use strict";
-    const PLAYPEN_URL = "http://pony-playpen.lietar.net";
+    const PLAYPEN_URL = "http://playground.ponylang.org";
 
     // For convenience of development
     var PREFIX = location.href.indexOf("/web.html") != -1 ? PLAYPEN_URL + "/" : "/";
