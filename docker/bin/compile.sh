@@ -11,7 +11,7 @@ mkdir "$DIR/main"
 cd "$DIR/main"
 cat > main.pony
 
-ponyc "$@"
+ponyc --debug "$@"
 printf '\377' # 255 in octal
 
 [ -f main.ll ] && cat main.ll

@@ -11,6 +11,6 @@ mkdir "$DIR/main"
 cd "$DIR/main"
 cat > main.pony
 
-ponyc --verbose=0 "$@"
+ponyc --debug --verbose=0 "$@"
 printf '\377' # 255 in octal
 exec ./main
