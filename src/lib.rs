@@ -105,8 +105,9 @@ pub enum CompileOutput {
 
 impl CompileOutput {
     pub fn as_opts(&self) -> &'static [&'static str] {
-        // We use statics here since the borrow checker complains if we put these directly in the
-        // match. Pretty ugly, but rvalue promotion might fix this.
+        // We use statics here since the borrow checker complains
+        // if we put these directly in the match. Pretty ugly, but
+        // rvalue promotion might fix this.
         static ASM: &'static [&'static str] = &["--pass=asm"];
         static LLVM: &'static [&'static str] = &["--pass=ir"];
         match *self {

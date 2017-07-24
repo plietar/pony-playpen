@@ -1,27 +1,17 @@
 [package]
-authors = ["The Rust Project Developers"]
+authors = ["The Pony Project Developers"]
 name = "pony-playpen"
 version = "0.1.0"
 
 [dependencies]
 env_logger = "0.3.3"
-hyper = "0.10.5"
-iron = "0.5.1"
 libc = "0.2.12"
 log = "0.3.6"
 lru-cache = "0.0.7"
-router = "0.5.1"
-rustc-serialize = "0.3.19"
-staticfile = "0.4.0"
-toml = "0.3.2"
-unicase = "1.4.0"
-url = "1.1.1"
+rocket = "0.3.0"
+rocket_codegen = "0.3.0"
+rocket_contrib = "0.3.0"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 wait-timeout = "0.1"
-logger = "0.3.0"
-
-serde_json = "0.9"
-serde_derive = "0.9"
-
-[dependencies.irc]
-default-features = false
-version = "0.11.3"
