@@ -565,7 +565,7 @@
             set_theme(editor, themelist, theme);
         }
 
-        session.setMode("ace/mode/rust");
+        session.setMode("ace/mode/pony");
 
         // Match the tab style of the Pony standard library.
         session.setTabSize(2);
