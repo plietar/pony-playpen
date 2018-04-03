@@ -1,29 +1,27 @@
 #![feature(plugin, use_extern_macros)]
 #![plugin(rocket_codegen)]
 
+extern crate hubcaps;
+extern crate pony_playpen;
 extern crate rocket;
 extern crate rocket_contrib;
 extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
-
-extern crate pony_playpen;
+extern crate tokio_core as tokio;
 
 use rocket::State;
 use rocket::response::NamedFile;
 use rocket_contrib::Json;
 use serde_derive::Deserialize;
 use serde_json::{json, json_internal};
+use std::collections::HashMap;
 use std::io;
 use std::path::{PathBuf, Path};
 use std::process::Command;
+use hubcaps::gists::Gist;
 
 use pony_playpen::*;
-
-const ENV: &'static str = "web";
-fn base_env() -> Vec<(String, String)> {
-    vec![(PLAYPEN_ENV_VAR_NAME.into(), ENV.into())]
-}
 
 #[get("/")]
 fn index() -> io::Result<NamedFile> {
@@ -40,78 +38,102 @@ struct Evaluate {
     code: String,
 }
 #[post("/evaluate.json", data = "<request>")]
-fn evaluate(request: Json<Evaluate>, cache: State<Cache>) -> Json {
+fn evaluate(request: Json<Evaluate>, playpen: State<Playpen>) -> Json {
     let request = request.0;
+    let (_status, compiler, output) = playpen.evaluate(request.code).unwrap();
 
-    let args = vec![];
-    let (_status, output) = cache.exec(
-        "/usr/local/bin/evaluate.sh", args, base_env(), request.code
-    ).unwrap();
-
-    let mut split = output.splitn(2, |b| *b == b'\xff');
-    let rustc = String::from_utf8(split.next().unwrap().into()).unwrap();
-
-    let mut response = json!({
-        "rustc": rustc,
-    });
-
-    if let Some(program) = split.next() {
-        let output = String::from_utf8_lossy(program).into_owned();
-        response["program"] = json!(output);
-    }
-
-    Json(response)
+    Json(json!({
+        "rustc": compiler,
+        "program": output,
+    }))
 }
 
 #[derive(Deserialize)]
 struct Compile {
-    emit: Option<String>,
+    emit: String,
     code: String,
 }
 
 #[post("/compile.json", data = "<request>")]
-fn compile(request: Json<Compile>, cache: State<Cache>) -> Json {
+fn compile(request: Json<Compile>, playpen: State<Playpen>) -> Json {
     let request = request.0;
 
-    let emit = request.emit
-        .map(|emit| emit.parse())
-        .unwrap_or(Ok(CompileOutput::Asm))
-        .unwrap();
+    let emit = request.emit.parse().unwrap();
+    let (status, compiler, output) = playpen.compile(request.code, emit).unwrap();
 
-    let mut args = vec![];
-    for opt in emit.as_opts() {
-        args.push(String::from(*opt));
+    if status.success() {
+        let output = highlight(emit, &output);
+        Json(json!({
+            "result": output,
+        }))
+    } else {
+        Json(json!({
+            "error": compiler,
+        }))
     }
+}
 
-    let (_status, output) = cache.exec(
-        "/usr/local/bin/compile.sh", args, base_env(), request.code
-    ).unwrap();
+#[derive(Deserialize)]
+struct CreateGist {
+    code: String,
+}
 
-    let mut split = output.splitn(2, |b| *b == b'\xff');
-    let rustc = String::from_utf8(split.next().unwrap().into()).unwrap();
+fn create_gist(token: String,
+               description: String,
+               filename: String,
+               code: String) -> Gist {
+    use tokio::reactor::Core;
+    use hubcaps::{Credentials, Github};
+    use hubcaps::gists::{Content, GistOptions};
 
-    match split.next() {
-        Some(program_out) => {
-            // Compilation succeeded
-            let output = highlight(emit, &String::from_utf8_lossy(program_out).into_owned());
-            Json(json!({
-                "result": output,
-            }))
-        }
-        None => {
-            Json(json!({
-                "error": rustc,
-            }))
-        }
-    }
+    let creds = Credentials::Token(token);
+
+    let mut core = Core::new().expect("Unable to create the reactor");
+    let github = Github::new("Pony Playground", Some(creds), &core.handle());
+
+    let file = Content {
+        filename: None,
+        content: code,
+    };
+
+    let mut files = HashMap::new();
+    files.insert(filename, file);
+    let options = GistOptions {
+        description: Some(description),
+        public: Some(true),
+        files,
+    };
+
+    core.run(github.gists().create(&options)).unwrap()
+}
+
+const GIST_FILENAME : &str = "main.pony";
+const GIST_DESCRIPTION : &str = "Shared via Pony Playground";
+
+struct GithubToken(String);
+
+#[post("/gist.json", data = "<request>")]
+fn gist(request: Json<CreateGist>, token: State<GithubToken>) -> Json {
+    let request = request.0;
+
+    let gist = create_gist(
+        token.0.clone(), GIST_DESCRIPTION.into(), GIST_FILENAME.into(), request.code);
+
+    Json(json!({
+        "gist_id": gist.id,
+        "gist_url": gist.html_url,
+    }))
 }
 
 fn main() {
     // Make sure pygmentize is installed before starting the server
     Command::new("pygmentize").spawn().unwrap().kill().unwrap();
 
+    let github_token = std::env::var("GITHUB_TOKEN").unwrap();
+
     rocket::ignite()
-        .mount("/", routes![index, assets, evaluate, compile])
-        .manage(Cache::new())
+        .mount("/", routes![index, assets, evaluate, compile, gist])
+        .manage(Playpen::new())
+        .manage(GithubToken(github_token))
         .launch();
 }

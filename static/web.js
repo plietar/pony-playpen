@@ -1,6 +1,6 @@
 (function () {
     "use strict";
-    const PLAYPEN_URL = "http://playground.ponylang.org";
+    const PLAYPEN_URL = "https://playground.ponylang.org";
 
     // For convenience of development
     var PREFIX = location.href.indexOf("/web.html") != -1 ? PLAYPEN_URL + "/" : "/";
@@ -135,7 +135,7 @@
     }
 
     function evaluate(result, code, button) {
-        send("evaluate.json", {code: code, separate_output: true, color: true },
+        send("evaluate.json", { code: code, separate_output: true, color: true },
             function(object) {
                 var samp, pre;
                 set_result(result);
@@ -150,7 +150,7 @@
 
                 var div = document.createElement("p");
                 div.className = "message";
-                if ("program" in object) {
+                if (object["program"]) {
                     samp = document.createElement("samp");
                     samp.className = "output";
                     samp.innerHTML = formatCompilerOutput(object.program);
@@ -164,7 +164,7 @@
                 if (div) {
                     result.appendChild(div);
                 }
-        }, button, "Running…", result);
+            }, button, "Running…", result);
     }
 
     function compile(emit, result, code, button) {
@@ -177,6 +177,22 @@
                 set_result(result, "<pre class=highlight><code>" + rehighlight(object.result, emit) + "</code></pre>");
             }
         }, button, "Compiling…", result);
+    }
+
+    function shareGist(result, code, button) {
+        send("gist.json", { code: code },
+            function(response) {
+                var gist_id = response.gist_id;
+                var gist_url = response.gist_url;
+
+                var play_url = PLAYPEN_URL + "/?gist=" + encodeURIComponent(gist_id);
+
+                set_result(
+                    result,
+                    "<p><a href=" + play_url + ">Permalink to the playground</a></p>" +
+                    "<p><a href=" + gist_url + ">Direct link to the gist</a></p>"
+                );
+            }, button, "Creating Gist…", result);
     }
 
     function httpRequest(method, url, data, expect, on_success, on_fail) {
@@ -202,132 +218,6 @@
         } else if (method === "POST") {
             req.send(data);
         }
-    }
-
-    function repaintResult() {
-        // Sadly the fun letter-spacing animation can leave artefacts in at
-        // least Firefox, so we want to manually trigger a repaint. It doesn’t
-        // matter whether it’s relative or static for now, so we’ll flip that.
-        result.parentNode.style.visibility = "hidden";
-        var _ = result.parentNode.offsetHeight;  // This empty assignment is intentional
-        result.parentNode.style.visibility = "";
-    }
-
-    function shareGist(result, code, button) {
-        // only needed for the "shrinking" animation
-        var full_url = PLAYPEN_URL + "/?code=" + encodeURIComponent(code);
-        var url = "https://api.github.com/gists";
-        button.disabled = true;
-
-        set_result(result, "<p>Playground URL: </p><p>Gist URL: </p>");
-        var link = document.createElement("a");
-        link.href = link.textContent = full_url;
-        link.className = "shortening-link";
-        result.firstChild.appendChild(link);
-
-        link = document.createElement("a");
-        link.href = link.textContent = full_url;
-        link.className = "shortening-link";
-        result.lastChild.appendChild(link);
-
-        var repainter = setInterval(repaintResult, 50);
-        httpRequest("POST", "https://api.github.com/gists",
-                    JSON.stringify({
-                        "description": "Shared via Pony Playground",
-                        "public": true,
-                        "files": {
-                            "playground.pony": {
-                                "content": code
-                            }
-                        }
-                    }),
-                    201, // expect "Created"
-                    // on success
-                    function(response) {
-                        button.disabled = false;
-                        clearInterval(repainter);
-
-                        response = JSON.parse(response);
-
-                        var gist_id = response.id;
-                        var gist_url = response.html_url;
-
-                        var play_url = PLAYPEN_URL + "/?gist=" +
-                                       encodeURIComponent(gist_id);
-
-
-                        var link = result.firstChild.firstElementChild;
-                        link.className = "";
-                        link.href = link.textContent = play_url;
-
-                        link = result.lastChild.firstElementChild;
-                        link.className = "";
-                        link.href = link.textContent = gist_url;
-
-                        repaintResult();
-                    },
-                    // on fail
-                    function(status, response) {
-                        button.disabled = false;
-                        clearInterval(repainter);
-
-                        set_result(result, "<p class=error>Gist Creation Failed" +
-                                   "<p class=error-explanation>Are you connected to the Internet?");
-
-                        repaintResult();
-                    }
-        );
-    }
-
-    function share(result, code, button) {
-        var playurl = PLAYPEN_URL + "/?code=" + encodeURIComponent(code);
-        if (playurl.length > 5000) {
-            set_result(result, "<p class=error>Sorry, your code is too long to share this way." +
-                "<p class=error-explanation>At present, sharing produces a link containing the" +
-                " code in the URL, and the URL shortener used doesn’t accept URLs longer than" +
-                " <strong>5000</strong> characters. Your code results in a link that is <strong>" +
-                playurl.length + "</strong> characters long. Try shortening your code.");
-            return;
-        }
-
-        var url = "https://is.gd/create.php?format=json&url=" + encodeURIComponent(playurl);
-
-        button.disabled = true;
-
-        set_result(result, "<p>Short URL: ");
-        var link = document.createElement("a");
-        link.href = link.textContent = playurl;
-        link.className = "shortening-link";
-        result.firstChild.appendChild(link);
-
-
-        var repainter = setInterval(repaintResult, 50);
-        httpRequest("GET", url, null, 200,
-                    function(response) {
-                        clearInterval(repainter);
-                        button.disabled = false;
-
-                        var link = result.firstChild.firstElementChild;
-                        link.className = "";
-                        link.href = link.textContent = JSON.parse(response).shorturl;
-
-                        repaintResult();
-                    },
-                    function(status, response) {
-                        clearInterval(repainter);
-                        button.disabled = false;
-
-                        if (request.status === 0) {
-                            set_result(result, "<p class=error>Connection failure" +
-                                "<p class=error-explanation>Are you connected to the Internet?");
-                        } else {
-                            set_result(result, "<p class=error>Something went wrong" +
-                                "<p class=error-explanation>The HTTP request produced a response with status code " + status + ".");
-                        }
-
-                        repaintResult();
-                    }
-        );
     }
 
     function fetchGist(session, result, gist_id, do_evaluate, evaluateButton) {
@@ -443,7 +333,6 @@
     var asmButton;
     var irButton;
     var formatButton;
-    var shareButton;
     var gistButton;
     var configureEditorButton;
     var result;
@@ -533,7 +422,6 @@
         asmButton = document.getElementById("asm");
         irButton = document.getElementById("llvm-ir");
         formatButton = document.getElementById("format");
-        shareButton = document.getElementById("share");
         gistButton = document.getElementById("gist");
         configureEditorButton = document.getElementById("configure-editor");
         result = document.getElementById("result").firstChild;
@@ -681,10 +569,6 @@
 
         irButton.onclick = function() {
             compile("llvm-ir", result, session.getValue(), irButton);
-        };
-
-        shareButton.onclick = function() {
-            share(result, session.getValue(), shareButton);
         };
 
         gistButton.onclick = function() {

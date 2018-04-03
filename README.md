@@ -21,3 +21,9 @@ cargo run --bin playpen
 ```
 
 You should now be able to browse http://127.0.0.1:8080 and interact.
+
+## Building for production
+
+```
+docker run --rm -it -v $HOME/.cargo/registry/:/home/rust/.cargo/registry -v $PWD:/home/rust/src ekidd/rust-musl-builder:nightly cargo build --release
+```

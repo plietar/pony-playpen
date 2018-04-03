@@ -2,9 +2,7 @@
 
 set -o errexit
 
-if [ "$RUST_PLAYPEN_ENV" != "irc" ]; then
-    ponyc --version
-fi
+ponyc --version
 
 DIR="$(mktemp -d)"
 mkdir "$DIR/main"
