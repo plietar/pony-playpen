@@ -36,11 +36,15 @@ fn assets(file: PathBuf) -> Option<NamedFile> {
 #[derive(Deserialize)]
 struct Evaluate {
     code: String,
+    branch: Option<String>,
 }
 #[post("/evaluate.json", data = "<request>")]
 fn evaluate(request: Json<Evaluate>, playpen: State<Playpen>) -> Json {
     let request = request.0;
-    let (_status, compiler, output) = playpen.evaluate(request.code).unwrap();
+
+    let branch = request.branch.map(|branch| branch.parse().unwrap()).unwrap_or(Branch::Release);
+
+    let (_status, compiler, output) = playpen.evaluate(branch, request.code).unwrap();
 
     Json(json!({
         "rustc": compiler,
@@ -52,6 +56,7 @@ fn evaluate(request: Json<Evaluate>, playpen: State<Playpen>) -> Json {
 struct Compile {
     emit: String,
     code: String,
+    branch: Option<String>,
 }
 
 #[post("/compile.json", data = "<request>")]
@@ -59,7 +64,9 @@ fn compile(request: Json<Compile>, playpen: State<Playpen>) -> Json {
     let request = request.0;
 
     let emit = request.emit.parse().unwrap();
-    let (status, compiler, output) = playpen.compile(request.code, emit).unwrap();
+    let branch = request.branch.map(|branch| branch.parse().unwrap()).unwrap_or(Branch::Release);
+
+    let (status, compiler, output) = playpen.compile(branch, request.code, emit).unwrap();
 
     if status.success() {
         let output = highlight(emit, &output);

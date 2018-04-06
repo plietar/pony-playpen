@@ -135,41 +135,50 @@
     }
 
     function evaluate(result, code, button) {
-        send("evaluate.json", { code: code, separate_output: true, color: true },
-            function(object) {
-                var samp, pre;
-                set_result(result);
-                if (object.rustc) {
-                    samp = document.createElement("samp");
-                    samp.innerHTML = formatCompilerOutput(object.rustc);
-                    pre = document.createElement("pre");
-                    pre.className = "rustc-output " + (("program" in object) ? "rustc-warnings" : "rustc-errors");
-                    pre.appendChild(samp);
-                    result.appendChild(pre);
-                }
+        send("evaluate.json", {
+            code: code,
+            separate_output: true,
+            color: true,
+            branch: branch
+        }, function(object) {
+            var samp, pre;
+            set_result(result);
+            if (object.rustc) {
+                samp = document.createElement("samp");
+                samp.innerHTML = formatCompilerOutput(object.rustc);
+                pre = document.createElement("pre");
+                pre.className = "rustc-output " + (("program" in object) ? "rustc-warnings" : "rustc-errors");
+                pre.appendChild(samp);
+                result.appendChild(pre);
+            }
 
-                var div = document.createElement("p");
-                div.className = "message";
-                if (object["program"]) {
-                    samp = document.createElement("samp");
-                    samp.className = "output";
-                    samp.innerHTML = formatCompilerOutput(object.program);
-                    pre = document.createElement("pre");
-                    pre.appendChild(samp);
-                    result.appendChild(pre);
-                    div.textContent = "Program ended.";
-                } else {
-                    div.textContent = "Compilation failed.";
-                }
-                if (div) {
-                    result.appendChild(div);
-                }
-            }, button, "Running…", result);
+            var div = document.createElement("p");
+            div.className = "message";
+            if (object["program"]) {
+                samp = document.createElement("samp");
+                samp.className = "output";
+                samp.innerHTML = formatCompilerOutput(object.program);
+                pre = document.createElement("pre");
+                pre.appendChild(samp);
+                result.appendChild(pre);
+                div.textContent = "Program ended.";
+            } else {
+                div.textContent = "Compilation failed.";
+            }
+            if (div) {
+                result.appendChild(div);
+            }
+        }, button, "Running…", result);
     }
 
     function compile(emit, result, code, button) {
-        send("compile.json", {emit: emit, code: code,
-                              color: true, highlight: true}, function(object) {
+        send("compile.json", {
+            emit: emit,
+            code: code,
+            color: true,
+            highlight: true,
+            branch: branch
+        }, function(object) {
             if ("error" in object) {
                 set_result(result, "<pre class=\"rustc-output rustc-errors\"><samp></samp></pre>");
                 result.firstChild.firstChild.innerHTML = formatCompilerOutput(object.error);
@@ -186,6 +195,10 @@
                 var gist_url = response.gist_url;
 
                 var play_url = PLAYPEN_URL + "/?gist=" + encodeURIComponent(gist_id);
+
+                if (branch != "release") {
+                    play_url += "&branch=" + branch;
+                }
 
                 set_result(
                     result,
@@ -434,6 +447,7 @@
         editor.setAnimatedScroll(true);
         session = editor.getSession();
         themelist = ace.require("ace/ext/themelist");
+        window.branch = "release"
 
         editor.focus();
 
@@ -477,6 +491,10 @@
             if (code !== null) {
                 session.setValue(code);
             }
+        }
+
+        if ("branch" in query) {
+            branch = query.branch
         }
 
         if (query.run === "1") {

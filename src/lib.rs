@@ -14,8 +14,10 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use docker::Container;
+pub use branches::Branch;
 
 mod docker;
+mod branches;
 
 pub struct Playpen {
     cache: Mutex<LruCache<CacheKey, (ExitStatus, Vec<u8>)>>,
@@ -26,6 +28,7 @@ struct CacheKey {
     cmd: String,
     args: Vec<String>,
     input: String,
+    branch: Branch,
 }
 
 impl Playpen {
@@ -36,6 +39,7 @@ impl Playpen {
     }
 
     fn exec(&self,
+            branch: Branch,
             cmd: &str,
             args: Vec<String>,
             input: String) -> io::Result<(ExitStatus, Vec<u8>)> {
@@ -45,6 +49,7 @@ impl Playpen {
             cmd: cmd.to_string(),
             args: args,
             input: input,
+            branch: branch,
         };
         let mut cache = self.cache.lock().unwrap();
         if let Some(prev) = cache.get_mut(&key) {
@@ -52,9 +57,7 @@ impl Playpen {
         }
         drop(cache);
 
-        let container = "ponylang-playpen";
-
-        let container = try!(Container::new(cmd, &key.args, &[], container));
+        let container = try!(Container::new(cmd, &key.args, &[], branch.image()));
 
         let tuple = try!(container.run(key.input.as_bytes(), Duration::new(5, 0)));
         let (status, mut output, timeout) = tuple;
@@ -76,15 +79,15 @@ impl Playpen {
         (compiler, output)
     }
 
-    pub fn evaluate(&self, code: String) -> io::Result<(ExitStatus, String, String)> {
-        let (status, raw_output) = self.exec("/usr/local/bin/evaluate.sh", vec![], code)?;
+    pub fn evaluate(&self, branch: Branch, code: String) -> io::Result<(ExitStatus, String, String)> {
+        let (status, raw_output) = self.exec(branch, "/usr/local/bin/evaluate.sh", vec![], code)?;
         let (compiler, output) = Self::parse_output(&raw_output);
         Ok((status, compiler, output))
     }
 
-    pub fn compile(&self, code: String, emit: CompileOutput) -> io::Result<(ExitStatus, String, String)> {
+    pub fn compile(&self, branch: Branch, code: String, emit: CompileOutput) -> io::Result<(ExitStatus, String, String)> {
         let args = emit.as_opts().iter().map(|x| String::from(*x)).collect();
-        let (status, raw_output) = self.exec("/usr/local/bin/compile.sh", args, code)?;
+        let (status, raw_output) = self.exec(branch, "/usr/local/bin/compile.sh", args, code)?;
         let (compiler, output) = Self::parse_output(&raw_output);
         Ok((status, compiler, output))
     }
