@@ -189,23 +189,26 @@
     }
 
     function shareGist(result, code, button) {
-        send("gist.json", { code: code },
-            function(response) {
-                var gist_id = response.gist_id;
-                var gist_url = response.gist_url;
+        send("gist.json", {
+            code: code,
+            base_url: PLAYPEN_URL,
+            branch: branch,
+        }, function(response) {
+            var gist_id = response.gist_id;
+            var gist_url = response.gist_url;
 
-                var play_url = PLAYPEN_URL + "/?gist=" + encodeURIComponent(gist_id);
+            var play_url = PLAYPEN_URL + "/?gist=" + encodeURIComponent(gist_id);
 
-                if (branch != "release") {
-                    play_url += "&branch=" + branch;
-                }
+            if (branch != "release") {
+                play_url += "&branch=" + branch;
+            }
 
-                set_result(
-                    result,
-                    "<p><a href=" + play_url + ">Permalink to the playground</a></p>" +
-                    "<p><a href=" + gist_url + ">Direct link to the gist</a></p>"
-                );
-            }, button, "Creating Gist…", result);
+            set_result(
+                result,
+                "<p><a href=" + play_url + ">Permalink to the playground</a></p>" +
+                "<p><a href=" + gist_url + ">Direct link to the gist</a></p>"
+            );
+        }, button, "Creating Gist…", result);
     }
 
     function httpRequest(method, url, data, expect, on_success, on_fail) {
