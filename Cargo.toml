@@ -1,6 +1,8 @@
 [package]
 authors = ["The Pony Project Developers"]
-name = "pony-playpen"
+description = "A web interface for running Pony code"
+license = "MIT"
+name = "pony-playground"
 version = "0.1.0"
 
 [dependencies]

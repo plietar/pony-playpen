@@ -1,7 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate hubcaps;
-extern crate pony_playpen;
+extern crate pony_playground;
 #[macro_use] extern crate rocket;
 extern crate rocket_contrib;
 extern crate serde;
@@ -20,7 +20,7 @@ use std::process::Command;
 use hubcaps::gists::Gist;
 use url::Url;
 
-use pony_playpen::*;
+use pony_playground::*;
 
 #[get("/")]
 fn index() -> io::Result<NamedFile> {
