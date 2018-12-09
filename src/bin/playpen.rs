@@ -9,27 +9,38 @@ extern crate serde_derive;
 extern crate tokio;
 extern crate url;
 
-use rocket::State;
-use rocket::response::NamedFile;
-use rocket_contrib::json;
-use rocket_contrib::json::{Json, JsonValue};
-use serde_derive::Deserialize;
-use std::io;
-use std::path::{PathBuf, Path};
-use std::process::Command;
 use hubcaps::gists::Gist;
+use rocket::State;
+use rocket::http::ContentType;
+use rocket::response::content::{Content, Html};
+use rocket_contrib::json::{Json, JsonValue};
+use rocket_contrib::json;
+use serde_derive::Deserialize;
+use std::path::PathBuf;
+use std::process::Command;
 use url::Url;
 
-use pony_playground::*;
+use pony_playground::{Playpen, Branch, highlight};
 
 #[get("/")]
-fn index() -> io::Result<NamedFile> {
-    NamedFile::open("static/web.html")
+fn index() -> Html<&'static [u8]> {
+    Html(include_bytes!("../../static/web.html"))
 }
 
-#[get("/<file..>")]
-fn assets(file: PathBuf) -> Option<NamedFile> {
-    NamedFile::open(Path::new("static/").join(file)).ok()
+#[get("/<path..>")]
+fn assets(path: PathBuf) -> Option<Content<&'static [u8]>> {
+    match path.to_string_lossy().as_ref() {
+        "web.css" => {
+            Some(Content(ContentType::CSS, include_bytes!("../../static/web.css")))
+        }
+        "web.js" => {
+            Some(Content(ContentType::JavaScript, include_bytes!("../../static/web.js")))
+        }
+        "mode-pony.js" => {
+            Some(Content(ContentType::JavaScript, include_bytes!("../../static/mode-pony.js")))
+        }
+        _ => None,
+    }
 }
 
 #[derive(Deserialize)]
