@@ -1,25 +1,24 @@
-#![feature(plugin, use_extern_macros)]
-#![plugin(rocket_codegen)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate hubcaps;
 extern crate pony_playpen;
-extern crate rocket;
+#[macro_use] extern crate rocket;
 extern crate rocket_contrib;
 extern crate serde;
 extern crate serde_derive;
-extern crate serde_json;
-extern crate tokio_core as tokio;
+extern crate tokio;
+extern crate url;
 
 use rocket::State;
 use rocket::response::NamedFile;
-use rocket_contrib::Json;
+use rocket_contrib::json;
+use rocket_contrib::json::{Json, JsonValue};
 use serde_derive::Deserialize;
-use serde_json::{json, json_internal};
-use std::collections::HashMap;
 use std::io;
 use std::path::{PathBuf, Path};
 use std::process::Command;
 use hubcaps::gists::Gist;
+use url::Url;
 
 use pony_playpen::*;
 
@@ -39,17 +38,17 @@ struct Evaluate {
     branch: Option<String>,
 }
 #[post("/evaluate.json", data = "<request>")]
-fn evaluate(request: Json<Evaluate>, playpen: State<Playpen>) -> Json {
+fn evaluate(request: Json<Evaluate>, playpen: State<Playpen>) -> JsonValue {
     let request = request.0;
 
     let branch = request.branch.map(|branch| branch.parse().unwrap()).unwrap_or(Branch::Release);
 
     let (_status, compiler, output) = playpen.evaluate(branch, request.code).unwrap();
 
-    Json(json!({
+    json!({
         "rustc": compiler,
         "program": output,
-    }))
+    })
 }
 
 #[derive(Deserialize)]
@@ -60,7 +59,7 @@ struct Compile {
 }
 
 #[post("/compile.json", data = "<request>")]
-fn compile(request: Json<Compile>, playpen: State<Playpen>) -> Json {
+fn compile(request: Json<Compile>, playpen: State<Playpen>) -> JsonValue {
     let request = request.0;
 
     let emit = request.emit.parse().unwrap();
@@ -70,48 +69,61 @@ fn compile(request: Json<Compile>, playpen: State<Playpen>) -> Json {
 
     if status.success() {
         let output = highlight(emit, &output);
-        Json(json!({
+        json!({
             "result": output,
-        }))
+        })
     } else {
-        Json(json!({
+        json!({
             "error": compiler,
-        }))
+        })
     }
 }
 
 #[derive(Deserialize)]
 struct CreateGist {
     code: String,
+    base_url: String,
+    branch: String,
 }
 
 fn create_gist(token: String,
                description: String,
                filename: String,
                code: String) -> Gist {
-    use tokio::reactor::Core;
+    use tokio::runtime::Runtime;
     use hubcaps::{Credentials, Github};
-    use hubcaps::gists::{Content, GistOptions};
+    use hubcaps::gists::GistOptions;
 
     let creds = Credentials::Token(token);
 
-    let mut core = Core::new().expect("Unable to create the reactor");
-    let github = Github::new("Pony Playground", Some(creds), &core.handle());
+    let mut rt = Runtime::new().expect("Unable to create the reactor");
+    let github = Github::new("Pony Playground", Some(creds));
 
-    let file = Content {
-        filename: None,
-        content: code,
-    };
+    let files = [(filename, code)].iter().cloned().collect();
+    let options = GistOptions::builder(files)
+        .description(description)
+        .public(true)
+        .build();
 
-    let mut files = HashMap::new();
-    files.insert(filename, file);
-    let options = GistOptions {
-        description: Some(description),
-        public: Some(true),
-        files,
-    };
+    rt.block_on(github.gists().create(&options)).unwrap()
+}
 
-    core.run(github.gists().create(&options)).unwrap()
+fn update_gist(token: String, id: &str, description: String) -> Gist {
+    use tokio::runtime::Runtime;
+    use hubcaps::{Credentials, Github};
+    use hubcaps::gists::GistOptions;
+    use std::collections::HashMap;
+
+    let creds = Credentials::Token(token);
+
+    let mut rt = Runtime::new().expect("Unable to create the reactor");
+    let github = Github::new("Pony Playground", Some(creds));
+
+    let options = GistOptions::builder(HashMap::<String, String>::new())
+        .description(description)
+        .build();
+
+    rt.block_on(github.gists().edit(id, &options)).unwrap()
 }
 
 const GIST_FILENAME : &str = "main.pony";
@@ -120,27 +132,43 @@ const GIST_DESCRIPTION : &str = "Shared via Pony Playground";
 struct GithubToken(String);
 
 #[post("/gist.json", data = "<request>")]
-fn gist(request: Json<CreateGist>, token: State<GithubToken>) -> Json {
+fn gist(request: Json<CreateGist>, token: State<GithubToken>) -> JsonValue {
     let request = request.0;
 
     let gist = create_gist(
         token.0.clone(), GIST_DESCRIPTION.into(), GIST_FILENAME.into(), request.code);
 
-    Json(json!({
+    let mut url = Url::parse(&request.base_url).unwrap();
+    url.query_pairs_mut().append_pair("gist", &gist.id);
+    if request.branch != "release" {
+        url.query_pairs_mut().append_pair("branch", &request.branch);
+    }
+    let url = url.into_string();
+
+    update_gist(token.0.clone(), &gist.id, format!("{} ({})", GIST_DESCRIPTION, url));
+
+    json!({
         "gist_id": gist.id,
         "gist_url": gist.html_url,
-    }))
+        "play_url": url,
+    })
 }
 
 fn main() {
     // Make sure pygmentize is installed before starting the server
-    Command::new("pygmentize").spawn().unwrap().kill().unwrap();
+    match Command::new("pygmentize").arg("-V").status() {
+        Ok(status) if status.success() => (),
+        _ => panic!("Cannot find pygmentize."),
+    };
 
-    let github_token = std::env::var("GITHUB_TOKEN").unwrap();
+    let token = match std::env::var("GITHUB_TOKEN") {
+        Ok(token) => token,
+        Err(_) => panic!("Missing GITHUB_TOKEN environment variable."),
+    };
 
     rocket::ignite()
         .mount("/", routes![index, assets, evaluate, compile, gist])
         .manage(Playpen::new())
-        .manage(GithubToken(github_token))
+        .manage(GithubToken(token))
         .launch();
 }
