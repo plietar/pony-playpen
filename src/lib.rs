@@ -1,16 +1,12 @@
 #[macro_use]
 extern crate log;
 extern crate libc;
-extern crate lru_cache;
 extern crate wait_timeout;
-
-use lru_cache::LruCache;
 
 use std::io::Write;
 use std::io;
 use std::process::{Command, ExitStatus, Stdio};
 use std::str::FromStr;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use docker::Container;
@@ -19,23 +15,10 @@ pub use branches::Branch;
 mod docker;
 mod branches;
 
-pub struct Playpen {
-    cache: Mutex<LruCache<CacheKey, (ExitStatus, Vec<u8>)>>,
-}
-
-#[derive(PartialEq, Eq, Hash)]
-struct CacheKey {
-    cmd: String,
-    args: Vec<String>,
-    input: String,
-    branch: Branch,
-}
-
+pub struct Playpen;
 impl Playpen {
     pub fn new() -> Playpen {
-        Playpen {
-            cache: Mutex::new(LruCache::new(256)),
-        }
+        Playpen
     }
 
     fn exec(&self,
@@ -43,30 +26,12 @@ impl Playpen {
             cmd: &str,
             args: Vec<String>,
             input: String) -> io::Result<(ExitStatus, Vec<u8>)> {
+        let container = try!(Container::new(cmd, &args, &[], branch.image()));
 
-        // Build key to look up
-        let key = CacheKey {
-            cmd: cmd.to_string(),
-            args: args,
-            input: input,
-            branch: branch,
-        };
-        let mut cache = self.cache.lock().unwrap();
-        if let Some(prev) = cache.get_mut(&key) {
-            return Ok(prev.clone())
-        }
-        drop(cache);
-
-        let container = try!(Container::new(cmd, &key.args, &[], branch.image()));
-
-        let tuple = try!(container.run(key.input.as_bytes(), Duration::new(5, 0)));
+        let tuple = try!(container.run(input.as_bytes(), Duration::new(10, 0)));
         let (status, mut output, timeout) = tuple;
         if timeout {
             output.extend_from_slice(b"\ntimeout triggered!");
-        }
-        let mut cache = self.cache.lock().unwrap();
-        if status.success() {
-            cache.insert(key, (status.clone(), output.clone()));
         }
         Ok((status, output))
     }
