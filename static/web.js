@@ -1,9 +1,6 @@
 (function () {
     "use strict";
-    const PLAYPEN_URL = "https://playground.ponylang.org";
-
-    // For convenience of development
-    var PREFIX = location.href.indexOf("/web.html") != -1 ? PLAYPEN_URL + "/" : "/";
+    const PLAYPEN_URL = "https://playground.ponylang.io";
 
     var samples = 2;
 
@@ -52,7 +49,7 @@
         set_result(result, "<p class=message>" + message);
 
         var request = new XMLHttpRequest();
-        request.open("POST", PREFIX + path, true);
+        request.open("POST", path, true);
         request.setRequestHeader("Content-Type", "application/json");
         request.onreadystatechange = function() {
             button.disabled = false;
@@ -135,7 +132,7 @@
     }
 
     function evaluate(result, code, button) {
-        send("evaluate.json", {
+        send("/evaluate.json", {
             code: code,
             separate_output: true,
             color: true,
@@ -143,36 +140,38 @@
         }, function(object) {
             var samp, pre;
             set_result(result);
-            if (object.rustc) {
+            if (object.compiler) {
                 samp = document.createElement("samp");
-                samp.innerHTML = formatCompilerOutput(object.rustc);
+                samp.innerHTML = formatCompilerOutput(object.compiler);
                 pre = document.createElement("pre");
-                pre.className = "rustc-output " + (("program" in object) ? "rustc-warnings" : "rustc-errors");
+                pre.className = "rustc-output";
                 pre.appendChild(samp);
                 result.appendChild(pre);
             }
 
             var div = document.createElement("p");
             div.className = "message";
-            if (object["program"]) {
-                samp = document.createElement("samp");
-                samp.className = "output";
-                samp.innerHTML = formatCompilerOutput(object.program);
-                pre = document.createElement("pre");
-                pre.appendChild(samp);
-                result.appendChild(pre);
-                div.textContent = "Program ended.";
+            if (object.success) {
+                if (object.output) {
+                    samp = document.createElement("samp");
+                    samp.className = "output";
+                    samp.innerHTML = formatCompilerOutput(object.output);
+                    pre = document.createElement("pre");
+                    pre.appendChild(samp);
+                    result.appendChild(pre);
+                    div.textContent = "Program ended.";
+                } else {
+                    div.textContent = "Program ended with no output.";
+                }
             } else {
                 div.textContent = "Compilation failed.";
             }
-            if (div) {
-                result.appendChild(div);
-            }
+            result.appendChild(div);
         }, button, "Running…", result);
     }
 
     function compile(emit, result, code, button) {
-        send("compile.json", {
+        send("/compile.json", {
             emit: emit,
             code: code,
             color: true,
@@ -189,7 +188,7 @@
     }
 
     function shareGist(result, code, button) {
-        send("gist.json", {
+        send("/gist.json", {
             code: code,
             base_url: PLAYPEN_URL,
             branch: branch,

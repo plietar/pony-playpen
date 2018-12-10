@@ -54,11 +54,12 @@ fn evaluate(request: Json<Evaluate>, playpen: State<Playpen>) -> JsonValue {
 
     let branch = request.branch.map(|branch| branch.parse().unwrap()).unwrap_or(Branch::Release);
 
-    let (_status, compiler, output) = playpen.evaluate(branch, request.code).unwrap();
+    let (status, compiler, output) = playpen.evaluate(branch, request.code).unwrap();
 
     json!({
-        "rustc": compiler,
-        "program": output,
+        "success": status.success(),
+        "compiler": compiler,
+        "output": output,
     })
 }
 
