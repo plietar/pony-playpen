@@ -39,6 +39,45 @@ sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 ```
 
+### Webserver setup
+
+```
+add-apt-repository ppa:certbot/certbot
+apt-get update
+apt-get install -y nginx python-certbot-nginx
+```
+
+Create /etc/nginx/conf.g/playground.ponylang.io.conf
+
+```
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    root /var/www/html;
+    server_name playground.ponylang.io;
+
+    location / {
+      proxy_pass      http://127.0.0.1:8080;
+    }
+}
+```
+
+```
+nginx -t && nginx -s reload
+```
+
+### SSL setup
+
+```
+sudo certbot --nginx -d playground.ponylang.io -m ponylang.main@gmail.com
+```
+
+crontab -e
+
+```
+0 12 * * * /usr/bin/certbot renew --quiet
+```
+
 ### Start docker
 
 ```
@@ -56,7 +95,7 @@ select `1` from prompt
 ```
 source /root/.profile
 rustup install nightly-2019-10-11
-rustup default nightly
+rustup default nightly-2019-10-11
 ```
 
 ### Build playground image
@@ -72,15 +111,17 @@ docker build docker -t ponylang-playpen
 Create a personal access token with gist access.
 install in GITHUB_TOKEN environment variable
 
+Should ONLY be the token, not "user:token"
+
 ### Build it
 
 ```
-cargo build --bin playpen
+cargo build --release --bin playpen
 ```
 
 ### Run it
 
 ```
-export ROCKET_PORT=80
-RUST_LOG=debug ./target/release/playpen 0.0.0.0 2>&1 | logger -t playpen
+export ROCKET_PORT=8080
+RUST_LOG=debug ./target/release/playpen 127.0.0.1 2>&1 | logger -t playpen &
 ```
