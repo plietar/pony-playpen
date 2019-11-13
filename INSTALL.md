@@ -103,7 +103,7 @@ rustup default nightly-2019-10-11
 ```
 git clone https://github.com/ponylang/pony-playground.git
 cd pony-playground
-docker build docker -t ponylang-playpen
+docker build docker --pull -t ponylang-playpen
 ```
 
 ### Set up gist access
