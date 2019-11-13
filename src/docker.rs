@@ -20,7 +20,7 @@ impl Container {
         let out = try!(run(Command::new("docker")
                                    .arg("create")
                                    .arg("--cap-drop=ALL")
-                                   .arg("--memory=512m")
+                                   .arg("--memory=1024m")
                                    .arg("--net=none")
                                    .arg("--pids-limit=20")
                                    .arg("--security-opt=no-new-privileges")
