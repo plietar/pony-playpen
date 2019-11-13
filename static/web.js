@@ -73,7 +73,7 @@
                 }
             }
         };
-        request.timeout = 10000;
+        request.timeout = 20000;
         request.ontimeout = function() {
             set_result(result, "<p class=error>Connection timed out" +
                 "<p class=error-explanation>Are you connected to the Internet?");
