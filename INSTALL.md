@@ -113,7 +113,7 @@ docker build docker --pull -t ponylang-playpen
 ### Set up gist access
 
 Create a personal access token with gist access.
-install in GITHUB_TOKEN environment variable e.g. to `$HOME/.profile`.
+install in GITHUB_TOKEN environment variable e.g. to `$HOME/.profile` for manual testing.
 
 Should ONLY be the token, not "user:token"
 
@@ -123,9 +123,36 @@ Should ONLY be the token, not "user:token"
 cargo build --release --bin playpen
 ```
 
-### Run it
+### Create Systemd Unit
+
+Put the following in the file `/etc/systemd/system/playground.service`, put in the generated GITHUB_TOKEN from above:
 
 ```
-export ROCKET_PORT=8080
-RUST_LOG=debug ./target/release/playpen 127.0.0.1 2>&1 | logger -t playpen &
+[Unit]
+Description=Pony Playground Systemd Service Unit
+Requires=docker.service
+After=network.target
+
+[Service]
+Environment="ROCKET_PORT=8080"
+Environment="GITHUB_TOKEN=..."
+Environment="RUST_LOG=debug"
+ExecStart=/root/pony-playground/target/release/playpen 127.0.0.1
+
+[Install]
+WantedBy=multi-user.target
 ```
+
+### Enable and Run it
+
+```
+systemctl enable playground
+systemctl start playground
+```
+
+STDOUT and STDERR both go the journal. If you want to investigate logs, use:
+
+```
+journalctl -u playground ...
+```
+
