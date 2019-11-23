@@ -47,7 +47,7 @@ apt-get update
 apt-get install -y nginx python-certbot-nginx
 ```
 
-Create /etc/nginx/conf.g/playground.ponylang.io.conf
+Create /etc/nginx/sites-enabled/playground.ponylang.io.conf
 
 ```
 server {
@@ -63,13 +63,16 @@ server {
 ```
 
 ```
+rm /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/playground.ponylang.io.conf /etc/nginx/sites-enabled/playground.ponylang.io.conf
+
 nginx -t && nginx -s reload
 ```
 
 ### SSL setup
 
 ```
-sudo certbot --nginx -d playground.ponylang.io -m ponylang.main@gmail.com
+certbot --nginx -d playground.ponylang.io -m ponylang.main@gmail.com
 ```
 
 crontab -e
@@ -81,7 +84,8 @@ crontab -e
 ### Start docker
 
 ```
-sudo service docker start
+systemctl enable docker
+systemctl start docker
 ```
 
 ### Install rust
@@ -94,7 +98,7 @@ select `1` from prompt
 
 ```
 source /root/.profile
-rustup install nightly-2019-10-11
+rustup install nightly-2019-10-11 --force # rustfmt is missing from this nightly
 rustup default nightly-2019-10-11
 ```
 
@@ -109,7 +113,7 @@ docker build docker --pull -t ponylang-playpen
 ### Set up gist access
 
 Create a personal access token with gist access.
-install in GITHUB_TOKEN environment variable
+install in GITHUB_TOKEN environment variable e.g. to `$HOME/.profile`.
 
 Should ONLY be the token, not "user:token"
 
