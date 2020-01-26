@@ -79,6 +79,7 @@ crontab -e
 
 ```
 0 12 * * * /usr/bin/certbot renew --quiet
+05 12 * * * systemctl restart playground
 ```
 
 ### Start docker
