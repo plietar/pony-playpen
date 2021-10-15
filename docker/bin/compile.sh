@@ -14,3 +14,4 @@ printf '\377' # 255 in octal
 
 [ -f main.ll ] && cat main.ll
 [ -f main.s ] && cat main.s
+rm -f main.*
